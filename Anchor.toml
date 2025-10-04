@@ -1,0 +1,224 @@
+// Testing Mirror Sync Contract
+import * as anchor from "@coral-xyz/anchor";
+
+const programId = new anchor.web3.PublicKey(
+  "CN2jxcY3E36UkmLs7sJFiHz5RjE4UZoXNffGr5qZ2qqe"
+);
+
+async function initializePlatform() {
+  const provider = anchor.AnchorProvider.env();
+  anchor.setProvider(provider);
+
+  const program = anchor.workspace.mirrorSync;
+
+  const [platformStatePda] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("platform")],
+    programId
+  );
+
+  console.log("Platform PDA:", platformStatePda.toString());
+
+  try {
+    // Check if already initialized
+    try {
+      const existingPlatform = await program.account.platform.fetch(
+        platformStatePda
+      );
+      console.log("⚠️ Platform already initialized:", existingPlatform);
+      return;
+    } catch (e) {
+      // Account doesn't exist, proceed with initialization
+      console.log("Platform not found, initializing...");
+    }
+
+    const tx = await program.methods
+      .initializePlatform()
+      .accounts({
+        platform: platformStatePda,
+        authority: provider.wallet.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    console.log("✅ Platform initialized! Transaction:", tx);
+  } catch (error) {
+    console.error("❌ Error:", error);
+  }
+}
+
+// Test 2: Register Guide
+async function registerGuide() {
+  const provider = anchor.AnchorProvider.env();
+  anchor.setProvider(provider);
+
+  const program = anchor.workspace.mirrorSync;
+
+  const [platformPda] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("platform")],
+    programId
+  );
+
+  const [guidePda] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("guide"), provider.wallet.publicKey.toBuffer()],
+    programId
+  );
+
+  console.log("Guide PDA:", guidePda.toString());
+
+  try {
+    // Check if already registered
+    try {
+      const existingGuide = await program.account.guide.fetch(guidePda);
+      console.log("⚠️ Guide already registered:", existingGuide);
+      return;
+    } catch (e) {
+      // Account doesn't exist, proceed with registration
+      console.log("Guide not found, registering...");
+    }
+
+    const tx = await program.methods
+      .registerGuide()
+      .accounts({
+        guide: guidePda,
+        platform: platformPda,
+        authority: provider.wallet.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    console.log("✅ Guide registered! Transaction:", tx);
+  } catch (error) {
+    console.error("❌ Error:", error);
+  }
+}
+
+// Fetch Guide Data
+async function fetchGuide() {
+  const provider = anchor.AnchorProvider.env();
+  anchor.setProvider(provider);
+  const program = anchor.workspace.mirrorSync;
+
+  const [guidePda] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("guide"), provider.wallet.publicKey.toBuffer()],
+    programId
+  );
+
+  try {
+    const guide = await program.account.guide.fetch(guidePda);
+    console.log("📊 Guide data:", {
+      authority: guide.authority.toString(),
+      isActive: guide.isActive,
+      totalTravelers: guide.totalTravelers.toString(),
+      totalVolume: guide.totalVolume.toString(),
+    });
+  } catch (error) {
+    console.error("❌ Guide not found or error:", error);
+  }
+}
+
+// Test 3: Subscribe Traveler
+async function subscribeTraveler() {
+  const provider = anchor.AnchorProvider.env();
+  anchor.setProvider(provider);
+
+  const program = anchor.workspace.mirrorSync;
+
+  const [platformPda] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("platform")],
+    programId
+  );
+
+  const [guidePda] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("guide"), provider.wallet.publicKey.toBuffer()],
+    programId
+  );
+
+  const [travelerPda] = anchor.web3.PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("traveler"),
+      provider.wallet.publicKey.toBuffer(),
+      guidePda.toBuffer(),
+    ],
+    programId
+  );
+
+  console.log("Traveler PDA:", travelerPda.toString());
+
+  try {
+    // Check if already subscribed
+    try {
+      const existingTraveler = await program.account.traveler.fetch(
+        travelerPda
+      );
+      console.log("⚠️ Traveler already subscribed:", existingTraveler);
+      return;
+    } catch (e) {
+      // Account doesn't exist, proceed with subscription
+      console.log("Traveler not found, subscribing...");
+    }
+
+    const tx = await program.methods
+      .subscribeTraveler()
+      .accounts({
+        traveler: travelerPda,
+        guide: guidePda,
+        platform: platformPda,
+        authority: provider.wallet.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    console.log("✅ Traveler subscribed! Transaction:", tx);
+  } catch (error) {
+    console.error("❌ Error:", error);
+  }
+}
+
+// Fetch Traveler Data
+async function fetchTraveler() {
+  const provider = anchor.AnchorProvider.env();
+  anchor.setProvider(provider);
+  const program = anchor.workspace.mirrorSync;
+
+  const [guidePda] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("guide"), provider.wallet.publicKey.toBuffer()],
+    programId
+  );
+
+  const [travelerPda] = anchor.web3.PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("traveler"),
+      provider.wallet.publicKey.toBuffer(),
+      guidePda.toBuffer(),
+    ],
+    programId
+  );
+
+  try {
+    const traveler = await program.account.traveler.fetch(travelerPda);
+    console.log("📊 Traveler data:", {
+      authority: traveler.authority.toString(),
+      guide: traveler.guide.toString(),
+      isActive: traveler.isActive,
+      totalMirrored: traveler.totalMirrored.toString(),
+    });
+  } catch (error) {
+    console.error("❌ Traveler not found or error:", error);
+  }
+}
+
+// Main execution
+async function main() {
+  console.log("🚀 Starting Mirror Sync Tests...\n");
+
+  // Uncomment the functions you want to run:
+
+  // await initializePlatform();
+  // await registerGuide();
+  // await fetchGuide();
+  await subscribeTraveler();
+  // await fetchTraveler();
+}
+
+main();
+Anchor.toml;
